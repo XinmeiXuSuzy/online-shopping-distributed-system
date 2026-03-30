@@ -24,37 +24,37 @@ A production-grade distributed e-commerce backend built with **Java 17**, **Spri
 ## Architecture Overview
 
 ```
-                          ┌─────────────────────────────────────────────┐
+                          ┌──────────────────────────────────────────────┐
                           │               AWS Cloud (ECS Fargate)        │
                           │                                              │
-  Client ──► ALB ──► ┌───┴──────────────────┐                          │
-                      │   Shopping API        │                          │
-                      │   (Spring Boot 3)     │                          │
-                      │                      │                          │
-                      │  ┌────────────────┐  │   ┌──────────────────┐  │
-                      │  │ OrderService   │──┼──► │  AWS SQS Queue   │  │
-                      │  │ (Flash Sale)   │  │   │  (Async Orders)  │  │
-                      │  └───────┬────────┘  │   └────────┬─────────┘  │
-                      │          │           │            │             │
-                      │  ┌───────▼────────┐  │   ┌───────▼──────────┐  │
-                      │  │ Redis Lock     │  │   │ SQS Consumer     │  │
-                      │  │ (Lua Scripts)  │  │   │ (TCC Confirm /   │  │
-                      │  └───────┬────────┘  │   │  Cancel)         │  │
-                      │          │           │   └──────────────────┘  │
-                      │  ┌───────▼────────┐  │                          │
-                      │  │ TCC Inventory  │  │                          │
-                      │  │ (Try/Confirm/  │  │                          │
-                      │  │  Cancel)       │  │                          │
-                      │  └───────┬────────┘  │                          │
-                      └──────────┼───────────┘                          │
-                                 │                                       │
-              ┌──────────────────┼──────────────────┐                   │
-              │                  │                  │                   │
-       ┌──────▼──────┐   ┌───────▼──────┐   ┌──────▼──────┐           │
-       │  MySQL 8    │   │  Redis 7     │   │  AWS SQS    │           │
-       │  (RDS)      │   │  (ElastiCache│   │  (VPC EP)   │           │
-       └─────────────┘   └──────────────┘   └─────────────┘           │
-                          └─────────────────────────────────────────────┘
+    Client ──► ALB ──► ┌──┴───────────────────┐                          │
+                       │   Shopping API       │                          │
+                       │   (Spring Boot 3)    │                          │
+                       │                      │                          │
+                       │  ┌────────────────┐  │   ┌──────────────────┐   │
+                       │  │ OrderService   │──┼──►│  AWS SQS Queue   │   │
+                       │  │ (Flash Sale)   │  │   │  (Async Orders)  │   │
+                       │  └───────┬────────┘  │   └────────┬─────────┘   │
+                       │          │           │            │             │
+                       │  ┌───────▼────────┐  │   ┌───────▼──────────┐   │
+                       │  │ Redis Lock     │  │   │ SQS Consumer     │   │
+                       │  │ (Lua Scripts)  │  │   │ (TCC Confirm /   │   │
+                       │  └───────┬────────┘  │   │  Cancel)         │   │
+                       │          │           │   └──────────────────┘   │
+                       │  ┌───────▼────────┐  │                          │
+                       │  │ TCC Inventory  │  │                          │
+                       │  │ (Try/Confirm/  │  │                          │
+                       │  │  Cancel)       │  │                          │
+                       │  └───────┬────────┘  │                          │
+                       └──────────┼───────────┘                          │
+                                  │                                      │
+               ┌──────────────────┼──────────────────┐                   │
+               │                  │                  │                   │
+        ┌──────▼──────┐   ┌───────▼──────┐   ┌──────▼──────┐             │
+        │  MySQL 8    │   │  Redis 7     │   │  AWS SQS    │             │
+        │  (RDS)      │   │ (ElastiCache)│   │  (VPC EP)   │             │
+        └─────────────┘   └──────────────┘   └─────────────┘             │
+                           └─────────────────────────────────────────────┘
 ```
 
 ---
@@ -126,29 +126,29 @@ POST /api/v1/orders
  [OrderController] ──► [OrderServiceImpl.createOrder]
                                 │
                     ┌───────────▼────────────┐
-                    │ Redis lock on           │
-                    │ lock:inventory:{id}     │  ← exponential backoff, max 3 retries
-                    │ (Lua SET NX PX 5000ms)  │
+                    │ Redis lock on          │
+                    │ lock:inventory:{id}    │  ← exponential backoff, max 3 retries
+                    │ (Lua SET NX PX 5000ms) │
                     └───────────┬────────────┘
                                 │
                     ┌───────────▼────────────┐
-                    │ @Transactional          │
+                    │ @Transactional         │
                     │                        │
-                    │ TCC.tryLock()           │  ← INSERT tcc_transactions (TRYING)
-                    │  UPDATE inventory       │  ← WHERE available_stock >= qty
-                    │  (affectedRows == 0?)   │  ← throw InsufficientInventoryException
+                    │ TCC.tryLock()          │  ← INSERT tcc_transactions (TRYING)
+                    │  UPDATE inventory      │  ← WHERE available_stock >= qty
+                    │  (affectedRows == 0?)  │  ← throw InsufficientInventoryException
                     │                        │
-                    │ INSERT orders (PENDING) │
-                    │ INSERT order_items      │
+                    │ INSERT orders (PENDING)│
+                    │ INSERT order_items     │
                     └───────────┬────────────┘
                                 │
                     ┌───────────▼────────────┐
-                    │ SQS.sendMessage(async)  │  ← fire and forget
+                    │ SQS.sendMessage(async) │  ← fire and forget
                     └───────────┬────────────┘
                                 │
                     ┌───────────▼────────────┐
-                    │ Redis lock release      │
-                    │ (Lua owner-safe DEL)    │
+                    │ Redis lock release     │
+                    │ (Lua owner-safe DEL)   │
                     └───────────┬────────────┘
                                 │
                     ◄── 202 Accepted {orderId, status: PENDING}
