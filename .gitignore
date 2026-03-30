@@ -1,0 +1,35 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# CDK
+infra/node_modules/
+infra/dist/
+infra/cdk.out/
+
+# Spring Boot
+application-local.yml
+application-prod.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local dev)
+docker/mysql-data/
+docker/redis-data/
+
+# Secrets — never commit these
+*.env
+.env
+credentials
+*.pem
+*.key

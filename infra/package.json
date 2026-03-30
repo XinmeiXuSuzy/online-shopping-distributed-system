@@ -1,0 +1,23 @@
+{
+  "name": "shopping-infra",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for the Online Shopping Distributed System",
+  "scripts": {
+    "build":   "tsc",
+    "watch":   "tsc -w",
+    "cdk":     "cdk",
+    "deploy":  "cdk deploy --all --require-approval never",
+    "destroy": "cdk destroy --all --force",
+    "diff":    "cdk diff",
+    "synth":   "cdk synth"
+  },
+  "dependencies": {
+    "aws-cdk-lib":       "2.134.0",
+    "constructs":        "10.3.0"
+  },
+  "devDependencies": {
+    "aws-cdk":           "2.134.0",
+    "typescript":        "5.4.3",
+    "@types/node":       "20.11.28"
+  }
+}

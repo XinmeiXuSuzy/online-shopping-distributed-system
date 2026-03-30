@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shop.mapper.InventoryMapper">
+
+    <resultMap id="InventoryResultMap" type="com.shop.domain.Inventory">
+        <id     property="id"              column="id"/>
+        <result property="productId"       column="product_id"/>
+        <result property="totalStock"      column="total_stock"/>
+        <result property="availableStock"  column="available_stock"/>
+        <result property="lockedQuantity"  column="locked_quantity"/>
+        <result property="version"         column="version"/>
+        <result property="updatedAt"       column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.shop.domain.Inventory">
+        INSERT INTO inventory (id, product_id, total_stock, available_stock, locked_quantity, version)
+        VALUES (#{id}, #{productId}, #{totalStock}, #{availableStock}, #{lockedQuantity}, #{version})
+    </insert>
+
+    <select id="findByProductId" resultMap="InventoryResultMap">
+        SELECT id, product_id, total_stock, available_stock, locked_quantity, version, updated_at
+        FROM inventory
+        WHERE product_id = #{productId}
+    </select>
+
+    <!--
+        TCC Try Phase: atomically lock stock.
+        The WHERE clause `available_stock >= #{quantity}` is the oversell guard.
+        If affectedRows == 0, caller throws InsufficientInventoryException.
+    -->
+    <update id="tryLockStock">
+        UPDATE inventory
+        SET
+            available_stock  = available_stock  - #{quantity},
+            locked_quantity  = locked_quantity  + #{quantity}
+        WHERE
+            product_id       = #{productId}
+            AND available_stock >= #{quantity}
+    </update>
+
+    <!--
+        TCC Confirm Phase: commit the sale — deduct from total_stock and release lock.
+    -->
+    <update id="confirmStock">
+        UPDATE inventory
+        SET
+            total_stock     = total_stock    - #{quantity},
+            locked_quantity = locked_quantity - #{quantity}
+        WHERE
+            product_id      = #{productId}
+            AND locked_quantity >= #{quantity}
+    </update>
+
+    <!--
+        TCC Cancel Phase: return locked units back to available.
+    -->
+    <update id="cancelLockStock">
+        UPDATE inventory
+        SET
+            available_stock = available_stock + #{quantity},
+            locked_quantity = locked_quantity - #{quantity}
+        WHERE
+            product_id      = #{productId}
+            AND locked_quantity >= #{quantity}
+    </update>
+
+    <update id="replenish">
+        UPDATE inventory
+        SET
+            total_stock     = total_stock     + #{addedStock},
+            available_stock = available_stock + #{addedStock}
+        WHERE product_id = #{productId}
+    </update>
+
+    <update id="updateTotalStock">
+        UPDATE inventory
+        SET
+            total_stock     = #{totalStock},
+            available_stock = #{totalStock} - locked_quantity
+        WHERE product_id = #{productId}
+    </update>
+
+</mapper>

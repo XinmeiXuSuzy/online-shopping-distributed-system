@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shop.mapper.TccTransactionMapper">
+
+    <resultMap id="TccResultMap" type="com.shop.domain.TccTransaction">
+        <id     property="id"           column="id"/>
+        <result property="orderId"      column="order_id"/>
+        <result property="productId"    column="product_id"/>
+        <result property="quantity"     column="quantity"/>
+        <result property="status"       column="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="tryExpireAt"  column="try_expire_at"/>
+        <result property="confirmedAt"  column="confirmed_at"/>
+        <result property="cancelledAt"  column="cancelled_at"/>
+        <result property="cancelReason" column="cancel_reason"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="updatedAt"    column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.shop.domain.TccTransaction">
+        INSERT INTO tcc_transactions
+            (id, order_id, product_id, quantity, status, try_expire_at, created_at, updated_at)
+        VALUES
+            (#{id}, #{orderId}, #{productId}, #{quantity}, #{status},
+             #{tryExpireAt}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="findByOrderId" resultMap="TccResultMap">
+        SELECT id, order_id, product_id, quantity, status, try_expire_at,
+               confirmed_at, cancelled_at, cancel_reason, created_at, updated_at
+        FROM tcc_transactions
+        WHERE order_id = #{orderId}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE tcc_transactions
+        SET
+            status       = #{status},
+            confirmed_at = #{confirmedAt},
+            cancelled_at = #{cancelledAt},
+            cancel_reason = #{cancelReason}
+        WHERE order_id = #{orderId}
+    </update>
+
+    <!--
+        Background cleanup: finds TRYING rows whose try_expire_at has passed.
+        Scanned by idx_tcc_status_expire index.
+    -->
+    <select id="findExpiredTrying" resultMap="TccResultMap">
+        SELECT id, order_id, product_id, quantity, status, try_expire_at,
+               confirmed_at, cancelled_at, cancel_reason, created_at, updated_at
+        FROM tcc_transactions
+        WHERE status = 'TRYING'
+          AND try_expire_at &lt; #{now}
+        LIMIT 100
+    </select>
+
+</mapper>

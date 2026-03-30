@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shop.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.shop.domain.User">
+        <id     property="id"           column="id"/>
+        <result property="username"     column="username"/>
+        <result property="email"        column="email"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="phone"        column="phone"/>
+        <result property="status"       column="status"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="updatedAt"    column="updated_at"/>
+        <result property="deletedAt"    column="deleted_at"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, username, email, password_hash, phone, status, created_at, updated_at, deleted_at
+    </sql>
+
+    <insert id="insert" parameterType="com.shop.domain.User">
+        INSERT INTO users (id, username, email, password_hash, phone, status, created_at, updated_at)
+        VALUES (#{id}, #{username}, #{email}, #{passwordHash}, #{phone}, #{status}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="findById" resultMap="UserResultMap">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE email = #{email} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByUsername" resultMap="UserResultMap">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE username = #{username} AND deleted_at IS NULL
+    </select>
+
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="update" parameterType="com.shop.domain.User">
+        UPDATE users
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE users
+        SET deleted_at = NOW(3)
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+</mapper>

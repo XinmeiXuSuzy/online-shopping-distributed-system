@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shop.mapper.OrderMapper">
+
+    <resultMap id="OrderResultMap" type="com.shop.domain.Order">
+        <id     property="id"           column="id"/>
+        <result property="userId"       column="user_id"/>
+        <result property="status"       column="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="totalAmount"  column="total_amount"/>
+        <result property="currency"     column="currency"/>
+        <result property="note"         column="note"/>
+        <result property="sqsMessageId" column="sqs_message_id"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="updatedAt"    column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.shop.domain.Order">
+        INSERT INTO orders (id, user_id, status, total_amount, currency, note, created_at, updated_at)
+        VALUES (#{id}, #{userId}, #{status}, #{totalAmount}, #{currency}, #{note}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="findById" resultMap="OrderResultMap">
+        SELECT id, user_id, status, total_amount, currency, note, sqs_message_id, created_at, updated_at
+        FROM orders
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByUserId" resultMap="OrderResultMap">
+        SELECT id, user_id, status, total_amount, currency, note, sqs_message_id, created_at, updated_at
+        FROM orders
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findByStatus" resultMap="OrderResultMap">
+        SELECT id, user_id, status, total_amount, currency, note, sqs_message_id, created_at, updated_at
+        FROM orders
+        WHERE status = #{status}
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE orders
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateSqsMessageId">
+        UPDATE orders
+        SET sqs_message_id = #{sqsMessageId}
+        WHERE id = #{id}
+    </update>
+
+</mapper>
